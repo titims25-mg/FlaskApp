@@ -34,7 +34,7 @@ jobs:
         run: |
           pytest
 
-          push-to-docker-hub:
+  push-to-docker-hub:
             needs: build-and-test
             runs-on: ubuntu-latest
             steps:
