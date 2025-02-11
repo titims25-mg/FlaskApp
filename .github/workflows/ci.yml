@@ -87,9 +87,15 @@ jobs:
         run: |
           echo -n "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      - name: Log in to Private Registry (Skip TLS verification)
+      - name: Configure Docker daemon to allow insecure registry
         run: |
-          echo -n "${{ secrets.PRIVATE_REGISTRY_PASSWORD }}" | docker login -u "${{ secrets.PRIVATE_REGISTRY_USERNAME }}" --password-stdin --tls-verify=false myprivateregistry.com
+          sudo mkdir -p /etc/docker
+          echo '{ "insecure-registries":["myprivateregistry.com"] }' | sudo tee /etc/docker/daemon.json
+          sudo systemctl restart docker    
+      
+      - name: Log in to Private Registry
+        run: |
+          echo -n "${{ secrets.PRIVATE_REGISTRY_PASSWORD }}" | docker login -u "${{ secrets.PRIVATE_REGISTRY_USERNAME }}" myprivateregistry.com --password-stdin
 
       - name: Build and push to Docker Hub
         run: |
