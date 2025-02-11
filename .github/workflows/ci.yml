@@ -32,4 +32,4 @@ jobs:
       # Exécuter les tests
       - name: Run tests
         run: |
-          pytest -m unittest discover -s . -p '*_test.py'
+          pytest
