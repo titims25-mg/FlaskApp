@@ -9,49 +9,94 @@ on:
       - master
 
 jobs:
-  build-and-test:
+  #  Job 1 : Exécuter les tests unitaires
+  unit-tests:
     runs-on: ubuntu-latest
 
     steps:
-      # Vérifier le code source
       - name: Check out code
         uses: actions/checkout@v3
 
-      # Configurer Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: 3.13
 
-      # Installer les dépendances
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Exécuter les tests
-      - name: Run tests
-        run: |
-          pytest
+      - name: Run unit tests
+        run: pytest
 
-  push-to-docker-hub:
-            needs: build-and-test
-            runs-on: ubuntu-latest
-            steps:
-              - name: Check out code
-                uses: actions/checkout@v3
-        
-              - name: Set up Docker Buildx
-                uses: docker/setup-buildx-action@v2
-        
-              - name: Log in to Docker Hub
-                run: |
-                  echo -n "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-        
-              - name: Build Docker image
-                run: |
-                  docker build -t ${{ secrets.DOCKER_USERNAME }}/flask-app:latest .
-        
-              - name: Push Docker image
-                run: |
-                  docker push ${{ secrets.DOCKER_USERNAME }}/flask-app:latest
+  #  Job 2 : Construire et tester l’image Docker (attend unit-tests)
+  build-and-test:
+    needs: unit-tests  # Ce job attend bien unit-tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker image
+        run: |
+          docker build -t flask-app:latest .
+
+      - name: Run Docker container
+        run: |
+          docker run -d -p 5000:5000 --name flask-app flask-app:latest
+          sleep 5
+          docker ps
+
+      - name: Run integration tests
+        run: |
+          curl --fail http://localhost:5000 || exit 1
+
+      - name: Stop and remove container
+        run: |
+          docker stop flask-app
+          docker rm flask-app
+
+      # Étape de notification en cas d'échec des tests
+      - name: Send email if tests fail
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "Tests échoués sur GitHub Actions"
+          body: "Les tests unitaires ont échoué sur la branche ${{ github.ref }}."
+          to: timothe.rajanelson@gmail.com
+          from: "GitHub Actions"
+  #  Job 3 : Push l’image Docker (attend build-and-test)
+  push-to-registries:
+    needs: build-and-test  # Ce job attend build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Log in to Docker Hub
+        run: |
+          echo -n "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Log in to Private Registry
+        run: |
+          echo -n "${{ secrets.PRIVATE_REGISTRY_PASSWORD }}" | docker login -u "${{ secrets.PRIVATE_REGISTRY_USERNAME }}" myprivateregistry.com --password-stdin
+
+      - name: Build and push to Docker Hub
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/flask-app:latest .
+          docker push ${{ secrets.DOCKER_USERNAME }}/flask-app:latest
+
+      - name: Build and push to Private Registry
+        run: |
+          docker tag ${{ secrets.DOCKER_USERNAME }}/flask-app:latest myprivateregistry.com/flask-app:latest
+          docker push myprivateregistry.com/flask-app:latest
