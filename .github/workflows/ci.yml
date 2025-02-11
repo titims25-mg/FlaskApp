@@ -87,9 +87,9 @@ jobs:
         run: |
           echo -n "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      - name: Log in to Private Registry (Force ignore TLS error)
+      - name: Log in to Private Registry (Skip TLS verification)
         run: |
-          echo -n "${{ secrets.PRIVATE_REGISTRY_PASSWORD }}" | docker login -u "${{ secrets.PRIVATE_REGISTRY_USERNAME }}" myprivateregistry.com --password-stdin || true
+          echo -n "${{ secrets.PRIVATE_REGISTRY_PASSWORD }}" | docker login -u "${{ secrets.PRIVATE_REGISTRY_USERNAME }}" --password-stdin --tls-verify=false myprivateregistry.com
 
       - name: Build and push to Docker Hub
         run: |
