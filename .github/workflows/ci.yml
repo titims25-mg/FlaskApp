@@ -95,7 +95,7 @@ jobs:
       
       - name: Log in to Private Registry
         run: |
-          echo -n "${{ secrets.PRIVATE_REGISTRY_PASSWORD }}" | docker login -u "${{ secrets.PRIVATE_REGISTRY_USERNAME }}" myprivateregistry.com:8080 --password-stdin
+          echo -n "${{ secrets.PRIVATE_REGISTRY_PASSWORD }}" | docker login -u "${{ secrets.PRIVATE_REGISTRY_USERNAME }}" http://myprivateregistry.com:5000 --password-stdin
 
       - name: Build and push to Docker Hub
         run: |
